@@ -381,4 +381,14 @@ if __name__ == "__main__":
         train(residual_rl=True, total_timesteps=200_000)
     else:
         print(f"Using existing model: {model_path}")
-    visualize(model_path, residual_rl=True)
+    
+    # Only visualize if DISPLAY is available (not on headless servers)
+    if os.getenv("DISPLAY") is not None:
+        try:
+            visualize(model_path, residual_rl=True)
+        except Exception as e:
+            print(f"Visualization failed (this is normal on headless servers): {e}")
+            print("Model training completed successfully. Use the web interface to visualize.")
+    else:
+        print("Running on headless server (no DISPLAY). Skipping visualization.")
+        print("Model training completed successfully. Use the web interface to visualize.")
