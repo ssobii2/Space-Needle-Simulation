@@ -3,19 +3,16 @@
 # Replace 'your-domain.com' with your actual domain name
 
 spaceneedle.astro42.com {
-    # Reverse proxy to FastAPI app
-    reverse_proxy 127.0.0.1:8000 {
-        # Preserve original host and headers
-        header_up Host {host}
-        header_up X-Real-IP {remote}
-        header_up X-Forwarded-For {remote_host}
-        header_up X-Forwarded-Proto {scheme}
-    }
+	# Reverse proxy to FastAPI app
+	reverse_proxy 127.0.0.1:8000 {
+		# Preserve original host
+		header_up Host {host}
+	}
 
-    # Enable automatic HTTPS (Let's Encrypt)
-    # Caddy will automatically:
-    # - Get SSL certificate
-    # - Renew it automatically
-    # - Redirect HTTP to HTTPS
+	# Automatic HTTPS is enabled by default
+	# Caddy will automatically:
+	# - Get SSL certificate from Let's Encrypt
+	# - Renew it automatically
+	# - Redirect HTTP to HTTPS
 }
 
