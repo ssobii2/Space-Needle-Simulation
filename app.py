@@ -2,7 +2,9 @@
 FastAPI Web Server for Needle Reaction Wheel Simulation
 --------------------------------------------------------
 Simplified to serve static files for browser-based MuJoCo.js implementation.
-Run with: uvicorn app:app --reload
+
+Development: uvicorn app:app --reload
+Production:  uvicorn app:app --host 0.0.0.0 --port 8000
 """
 
 from fastapi import FastAPI
@@ -37,4 +39,6 @@ async def get_onnx_model():
 
 if __name__ == "__main__":
     import uvicorn
+    # Run on all interfaces (0.0.0.0) for EC2 deployment
+    # Port 8000 is configured in security group
     uvicorn.run(app, host="0.0.0.0", port=8000)
