@@ -1,0 +1,12 @@
+gymnasium>=1.2.0
+mujoco>=3.3.0
+stable-baselines3>=2.7.0
+numpy>=2.0.0
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+jinja2>=3.1.0
+python-multipart>=0.0.6
+onnx>=1.15.0
+onnxruntime>=1.16.0
+torch>=2.0.0
+onnxscript>=0.1.0

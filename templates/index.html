@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Needle Stabilizer Simulation</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <h1>Needle Reaction Wheel Stabilizer</h1>
+            <p class="subtitle">Real-time simulation with Reinforcement Learning</p>
+        </header>
+
+        <div class="main-content">
+            <div class="simulation-panel">
+                <div class="canvas-container">
+                    <canvas id="simCanvas" width="800" height="600"></canvas>
+                    <div id="status" class="status-indicator">
+                        <span class="status-dot" id="statusDot"></span>
+                        <span id="statusText">Ready</span>
+                    </div>
+                </div>
+
+                <div class="controls">
+                    <button id="startBtn" class="btn btn-primary">Start</button>
+                    <button id="stopBtn" class="btn btn-secondary" disabled>Stop</button>
+                    <button id="resetBtn" class="btn btn-secondary">Reset</button>
+                </div>
+                <div class="camera-hint">
+                    <small>💡 Drag to rotate camera • Scroll to zoom</small>
+                </div>
+            </div>
+
+            <div class="info-panel">
+                <div class="joint-panel">
+                    <h3>Joint</h3>
+                    <div class="metrics">
+                        <div class="metric">
+                            <label>jx:</label>
+                            <span id="jx">0.000</span>
+                        </div>
+                        <div class="metric">
+                            <label>jy:</label>
+                            <span id="jy">0.000</span>
+                        </div>
+                        <div class="metric">
+                            <label>j_rw1:</label>
+                            <span id="j_rw1">0.000</span>
+                        </div>
+                        <div class="metric">
+                            <label>j_rw3:</label>
+                            <span id="j_rw3">0.000</span>
+                        </div>
+                        <div class="metric">
+                            <label>j_rw2:</label>
+                            <span id="j_rw2">0.000</span>
+                        </div>
+                        <div class="metric">
+                            <label>j_rw4:</label>
+                            <span id="j_rw4">0.000</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="control-panel">
+                    <h3>Control</h3>
+                    <div class="metrics">
+                        <div class="metric">
+                            <label>m_rw1:</label>
+                            <span id="m_rw1">0.000</span>
+                        </div>
+                        <div class="metric">
+                            <label>m_rw3:</label>
+                            <span id="m_rw3">0.000</span>
+                        </div>
+                        <div class="metric">
+                            <label>m_rw2:</label>
+                            <span id="m_rw2">0.000</span>
+                        </div>
+                        <div class="metric">
+                            <label>m_rw4:</label>
+                            <span id="m_rw4">0.000</span>
+                        </div>
+                        <div class="metric slider-metric">
+                            <label>m_jx:</label>
+                            <div class="slider-container">
+                                <input type="range" id="slider_m_jx" min="-0.05" max="0.05" step="0.001" value="0">
+                                <span id="m_jx">0.000</span>
+                            </div>
+                        </div>
+                        <div class="metric slider-metric">
+                            <label>m_jy:</label>
+                            <div class="slider-container">
+                                <input type="range" id="slider_m_jy" min="-0.05" max="0.05" step="0.001" value="0">
+                                <span id="m_jy">0.000</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ONNX Runtime Web (replaces deprecated ONNX.js) -->
+    <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.16.0/dist/ort.min.js"></script>
+    <script>
+        // Configure ONNX Runtime Web WASM paths and settings
+        if (typeof ort !== 'undefined') {
+            // Set WASM file paths to CDN
+            ort.env.wasm.wasmPaths = 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.16.0/dist/';
+            ort.env.wasm.numThreads = 1;
+            ort.env.wasm.simd = false; // Disable SIMD for better compatibility
+            console.log('ONNX Runtime Web configured');
+        } else {
+            console.warn('ONNX Runtime Web (ort) not loaded yet');
+        }
+    </script>
+    
+    <!-- MuJoCo WebAssembly -->
+    <script type="module">
+        // Import Three.js as ES module (fixes deprecation warning)
+        import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
+        window.THREE = THREE;
+        
+        // Load MuJoCo WASM from mujoco-js npm package
+        // The zalo/mujoco_wasm repo uses mujoco-js package
+        let load_mujoco;
+        try {
+            // Load from mujoco-js npm package (used by zalo/mujoco_wasm)
+            const mujocoModule = await import('https://cdn.jsdelivr.net/npm/mujoco-js@0.0.7/dist/mujoco_wasm.js');
+            load_mujoco = mujocoModule.default || mujocoModule.load_mujoco || mujocoModule;
+            console.log('MuJoCo WASM loaded successfully from mujoco-js package');
+        } catch (e) {
+            console.error('Failed to load MuJoCo WASM from npm CDN:', e);
+            // Try alternative: use unpkg
+            try {
+                const mujocoModule = await import('https://unpkg.com/mujoco-js@0.0.7/dist/mujoco_wasm.js');
+                load_mujoco = mujocoModule.default || mujocoModule.load_mujoco || mujocoModule;
+                console.log('MuJoCo WASM loaded successfully from unpkg');
+            } catch (e2) {
+                console.error('Failed to load from unpkg as well:', e2);
+                alert('Failed to load MuJoCo WASM. Check console for details. The simulation will not work without it.');
+            }
+        }
+        
+        // Make it globally available
+        if (load_mujoco) {
+            window.loadMuJoCo = load_mujoco;
+            // Signal that MuJoCo loader is ready
+            window.mujocoReady = true;
+            window.dispatchEvent(new Event('mujoco-ready'));
+        } else {
+            console.warn('MuJoCo loader not available. Simulation will not work.');
+        }
+    </script>
+    
+    <!-- Application JavaScript files - load after ONNX Runtime is ready -->
+    <script>
+        // Wait for ONNX Runtime Web to load before loading app scripts
+        function loadAppScripts() {
+            if (typeof ort === 'undefined') {
+                // Wait a bit more for ONNX Runtime to load
+                setTimeout(loadAppScripts, 50);
+                return;
+            }
+            
+            // ONNX Runtime is loaded, now load app scripts
+            const scripts = [
+                '/static/js/simulation.js',
+                '/static/js/viewer.js',
+                '/static/js/model.js',
+                '/static/js/controls.js',
+                '/static/js/app.js'
+            ];
+            
+            scripts.forEach(src => {
+                const script = document.createElement('script');
+                script.src = src;
+                document.body.appendChild(script);
+            });
+        }
+        
+        // Start loading app scripts
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', loadAppScripts);
+        } else {
+            loadAppScripts();
+        }
+    </script>
+</body>
+
+</html>
